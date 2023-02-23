@@ -17,7 +17,7 @@ ____            _     ____
 
 By: Andreu Seguí Segura
 """
-TIMEOUT = 10
+TIMEOUT = 30
 
 # Lista donde se almacenan los puertos abiertos
 ports = []
@@ -26,14 +26,10 @@ def flags():
     # Creamos el parseador
     parser = argparse.ArgumentParser()
     # Añadimos los argumentos
-    parser.add_argument("-s", "--server", required=True, type=str, help="Ip del servidor o de la red.\
-    Por Defecto: 127.0.0.1")
-    parser.add_argument("-t", "--threads", required=True, type=int, help="Cantidad de hilos trabajando simultaneos. Cuanto mas alto sea el numero mas velocidad de escaneo.\
-    Por Defecto 100")
-    parser.add_argument("-minp", "--minport", required=True, type=int, help="El primer puerto que vas a escanear. El numeor minimo es 1.\
-    Por Defecto 1")
-    parser.add_argument("-maxp", "--maxport", required=True, type=int, help="El ultimo puerto que vas a escanear. El numero maximo es 65535.\
-    Por Defecto 65535")
+    parser.add_argument("-s", "--server", required=True, type=str, help="Ip del servidor o de la red")
+    parser.add_argument("-t", "--threads", required=True, type=int, help="Cantidad de hilos trabajando simultaneos. Cuanto mas alto sea el numero mas velocidad de escaneo")
+    parser.add_argument("-minp", "--minport", required=True, type=int, help="El primer puerto que vas a escanear. El numeor minimo es 1")
+    parser.add_argument("-maxp", "--maxport", required=True, type=int, help="El ultimo puerto que vas a escanear. El numero maximo es 65535")
     parser.add_argument("-l", "--log", required=False, action="store_true", help="Si indicas este argumento se generara un log")
     # Parseamos los arumentos al script
     args = parser.parse_args()
@@ -41,14 +37,14 @@ def flags():
     return args
 
 
-def scan_host(port):
+def scan_host(ip, port):
     try:
         # Crea un objeto socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Establece un tiempo de espera para la conexión
         sock.settimeout(TIMEOUT)
-        result = sock.connect_ex((args.server, port))
-        host = socket.gethostbyaddr(args.server)
+        result = sock.connect_ex((ip, port))
+        host = socket.gethostbyaddr(ip)
         # Si te escaneas a ti mismo, que salga la ip 127.0.0.1
         if host[2][0] == '::1':
             host[2][0] = '127.0.0.1'
@@ -63,7 +59,7 @@ def scan_host(port):
         # Cierra el socket
         sock.close()
     except Exception as error:
-        print('[\033[31m-\033[0m]Error: {} | Puerto: {}'.format(error, port))
+        print('[\033[31m-\033[0m]Error: {} | Ip: {}'.format(error, ip))
 
 
 def generate_log():
@@ -77,38 +73,66 @@ if __name__ == '__main__':
     print(BANNER)
     # Pasmos los argumentos
     args = flags()
-    # Si los argumentos son invalidos, los definimos de manera que sean validos
-    if args.maxport >= 65535:
-        args.maxport = 65535
-    if args.minport <= 1:
-        args.minport = 1
     print('Ip: {}'.format(args.server))
     print('Hilos tabajando simultaneamente: {}'.format(args.threads))
     print('Rango de puertos a escanear: {} - {}'.format(args.minport, args.maxport))
     print('Timeout de: {} segundos\n'.format(TIMEOUT))
     # Establecemos un tiempo
     time_start = time.time()
-    # Definimos que trabajen todos hilos
-    with ThreadPoolExecutor(max_workers=args.threads) as executor:
-        futures = [executor.submit(scan_host, port) for port in range(args.minport, args.maxport)]
-        for future in as_completed(futures):
-            pass
-    # Si no se encunetra ningun puerto, envia un mensaje de que no se ha encontrado nada
-    if len(ports) == 0:
-        print('No se han encontrado puertos')
-    # Si se ha encontrado hacer un informe
-    else:
-        # Acabamos el tiempo para hacer un recuento total de los segundos que ha tardado el escaner
-        time_end = time.time()
-        total_time = time_end - time_start
-        print('\nNumeros de puertos totales: {}'.format(len(ports)))
-        print('Estos puertos son: {}'.format(ports))
-        print('El objetivo ha sido escaneado en un total de {} segundos\n'.format(total_time))
-        # Si se ha pasado el argumento de log se generara, si no no se generara nada
-        if args.log:
-            generate_log()
-            input('Se ha generado un log. Pulsar intro para cerrar el programa')
-            pass
+    # Si los argumentos son invalidos, los definimos de manera que sean validos
+    if args.maxport >= 65535:
+        args.maxport = 65535
+    if args.minport <= 1:
+        args.minport = 1
+    if args.server[-1] == '0':
+        for host in range(1, 254):
+            network_prefix = args.server[:-1]
+            host = network_prefix + str(host)
+            with ThreadPoolExecutor(max_workers=args.threads) as executor:
+                futures = [executor.submit(scan_host,host, port) for port in range(args.minport, args.maxport)]
+                for future in as_completed(futures):
+                    pass
+        # Si no se encunetra ningun puerto, envia un mensaje de que no se ha encontrado nada
+        if len(ports) == 0:
+            print('No se han encontrado puertos')
+        # Si se ha encontrado hacer un informe
         else:
-            input('No se ha generado un log. Pulsar intro para cerrar el programa')
-            pass
+            # Acabamos el tiempo para hacer un recuento total de los segundos que ha tardado el escaner
+            time_end = time.time()
+            total_time = time_end - time_start
+            print('\nNumeros de puertos totales: {}'.format(len(ports)))
+            print('Estos puertos son: {}'.format(ports))
+            print('El objetivo ha sido escaneado en un total de {} segundos\n'.format(total_time))
+            # Si se ha pasado el argumento de log se generara, si no no se generara nada
+            if args.log:
+                generate_log()
+                input('Se ha generado un log. Pulsar intro para cerrar el programa')
+                pass
+            else:
+                input('No se ha generado un log. Pulsar intro para cerrar el programa')
+                pass
+    else:
+        # Definimos que trabajen todos hilos
+        with ThreadPoolExecutor(max_workers=args.threads) as executor:
+            futures = [executor.submit(scan_host,args.server, port) for port in range(args.minport, args.maxport)]
+            for future in as_completed(futures):
+                pass
+        # Si no se encunetra ningun puerto, envia un mensaje de que no se ha encontrado nada
+        if len(ports) == 0:
+            print('No se han encontrado puertos')
+        # Si se ha encontrado hacer un informe
+        else:
+            # Acabamos el tiempo para hacer un recuento total de los segundos que ha tardado el escaner
+            time_end = time.time()
+            total_time = time_end - time_start
+            print('\nNumeros de puertos totales: {}'.format(len(ports)))
+            print('Estos puertos son: {}'.format(ports))
+            print('El objetivo ha sido escaneado en un total de {} segundos\n'.format(total_time))
+            # Si se ha pasado el argumento de log se generara, si no no se generara nada
+            if args.log:
+                generate_log()
+                input('Se ha generado un log. Pulsar intro para cerrar el programa')
+                pass
+            else:
+                input('No se ha generado un log. Pulsar intro para cerrar el programa')
+                pass
