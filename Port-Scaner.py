@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
 import argparse
 import time
-import os
+import os, sys
 import urllib.request
 from urllib.error import HTTPError, URLError
 
@@ -85,7 +85,7 @@ def scan_host(ip, port):
                 serv = socket.getservbyport(port)
             except Exception:
                 serv = 'Service not found'
-            print('[\033[32m' + '+' '\033[0m' + '] Port: [{}/{}] OPEN in {}'.format(port, serv, hostname))
+            print('[\033[32m' + '+' '\033[0m' + '] Host: {} | Port: [{}/{}] OPEN in {}'.format(ip, port, serv, hostname))
             # Agrega el puerto a la lista de puertos para esta IP
             hosts[ip].append(port)
         # Cierra el socket
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         print('Network: {}'.format(SERVER))
         print('Public IP: {}'.format(public_ip))
         print('Threads Working: {}'.format(THREADS))
-        print('Ports To Scan: {}'.format(PORTS_TO_SCAN))
+        print('Ports To Scan:\n{}'.format(PORTS_TO_SCAN))
         print('Timeout: {}\n'.format(TIMEOUT))
         # Recorremos por todas las Ips de la red
         for host in range(1, 255):
@@ -133,9 +133,6 @@ if __name__ == '__main__':
             network_prefix = args.server[:-1]
             # Añadimos a cada host la ip correspondiendo segun el prefijo de la red
             host = network_prefix + str(host)
-            if hosts.values:
-                print('\n{}'.format(host))
-                print('\033[31m' + 'Service names may be incorrect!' + '\033[0m')
             with ThreadPoolExecutor(max_workers=THREADS) as executor:
                 futures = [executor.submit(scan_host,host, port) for port in PORTS_TO_SCAN]
                 for future in as_completed(futures):
@@ -143,23 +140,23 @@ if __name__ == '__main__':
         # Acabamos el tiempo para hacer un recuento total de los segundos que ha tardado el escaner
         time_end = time.time()
         total_time = time_end - time_start
-        print('\nThe network has been scanned in {} seconds\n'.format(total_time))
+        print('\n\033[31m' + 'Service names may be incorrect!' + '\033[0m')
+        print('The network has been scanned in {} seconds\n'.format(total_time))
         # Si se ha pasado el argumento de log se generara, si no no se generara nada
         if args.log:
             generate_log()
-            input('The log has been genereated. Press [enter] to close the program')
-            pass
+            input('The log has been genereated.')
+            sys.exit()
         else:
-            input('The log has not been generated. Press [enter] to close the program')
-            pass
+            input('The log has not been generated.')
+            sys.exit()
     else:
         print('Target IP: {}'.format(SERVER))
         print('Public IP: {}'.format(public_ip))
         print('Threads Working: {}'.format(THREADS))
-        print('Ports To Scan: {}'.format(PORTS_TO_SCAN))
-        print('Timeout: {}'.format(TIMEOUT))
+        print('Ports To Scan:\n{}'.format(PORTS_TO_SCAN))
+        print('Timeout: {}\n'.format(TIMEOUT))
         # Definimos que trabajen todos hilos
-        print("\nIP: {}".format(SERVER))
         with ThreadPoolExecutor(max_workers=args.threads) as executor:
             futures = [executor.submit(scan_host,args.server, port) for port in PORTS_TO_SCAN]
             for future in as_completed(futures):
@@ -167,12 +164,13 @@ if __name__ == '__main__':
         # Acabamos el tiempo para hacer un recuento total de los segundos que ha tardado el escaner
         time_end = time.time()
         total_time = time_end - time_start
-        print('\nThe network has been scanned in {} seconds'.format(total_time))
+        print('\n\033[31m' + 'Service names may be incorrect!' + '\033[0m')
+        print('The network has been scanned in {} seconds'.format(total_time))
         # Si se ha pasado el argumento de log se generara, si no no se generara nada
         if args.log:
             generate_log()
-            input('The log has been genereated. Press [enter] to close the program')
-            pass
+            input('The log has been genereated.')
+            sys.exit()
         else:
-            input('The log has not been generated. Press [enter] to close the program')
-            pass
+            input('The log has not been generated.')
+            sys.exit()
